@@ -1,14 +1,14 @@
 # livepeer-vod-tool
 A VOD Transcoding Tool Using Livepeer's Hosted Gateway
 
-This tool uses `ffmpeg` to segment a video into HLS, and then uses the Livepeer gateway API to transcode each `.ts` segment based on a preset.  You can get a free API key from the [Livepeer website](https://livepeer.com)
+This tool uses `ffmpeg` to segment a video into HLS, and then uses the Livepeer gateway API to transcode each `.ts` segment based on a preset.  You can get a free API key from the [Livepeer website](https://livepeer.com).
 
 Livepeer is a highly reliabile, scalabile, and cost effective transcoding infrastructure.  This is a simple example of what can be build using its segmented-based transcoding API.
 
 # Instructions
-To try this out, you can create an executable by build the project yourself using `go build`, or download one of the releases [here](https://github.com/ericxtang/livepeer-vod-tool/releases).
+To use the tool, you can create an executable by build the project yourself using `go build`, or download one of the releases [here](https://github.com/ericxtang/livepeer-vod-tool/releases).
 
-After getting the executable, you can try the following command:
+After getting the executable, you can try the following command.  Be sure to install `ffmepg` if you have not already.
 
 `./main -file bbb_30s.mp4 -apiKey {apiKey} -presets bbbPresets.json`
 
