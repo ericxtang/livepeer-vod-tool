@@ -5,6 +5,8 @@ This tool uses `ffmpeg` to segment a video into HLS, and then uses the Livepeer 
 
 Livepeer is a highly reliabile, scalabile, and cost effective transcoding infrastructure.  This is a simple example of what can be build using its segmented-based transcoding API.
 
+![Workflow Diagram](https://eric-test-livepeer.s3.amazonaws.com/livepeer-vod-tool.png)
+
 # Instructions
 To use the tool, you can create an executable by build the project yourself using `go build`, or download one of the releases [here](https://github.com/ericxtang/livepeer-vod-tool/releases).
 
