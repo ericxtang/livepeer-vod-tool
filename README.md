@@ -9,6 +9,7 @@ Livepeer is a highly reliabile, scalabile, and cost effective transcoding infras
 To try this out, you can create an executable by build the project yourself using `go build`, or download one of the releases [here](https://github.com/ericxtang/livepeer-vod-tool/releases).
 
 After getting the executable, you can try the following command:
+
 `./main -file bbb_30s.mp4 -apiKey {apiKey} -presets bbbPresets.json`
 
 You should see a `/results` directory that contains your transcoding results.  You can play the transcoded result by running `ffplay results/playlist.m3u8`
