@@ -1,9 +1,8 @@
 # livepeer-vod-tool
 A VOD Transcoding Tool Using Livepeer's Hosted Gateway
 
-<<<<<<< HEAD
-TODO: Complete mp4 workflow - writing list.txt, combine using `ffmpeg -f concat -safe 0 -i list.txt -c copy out.mp4`
 =======
+
 This tool uses `ffmpeg` to segment a video into HLS, and then uses the Livepeer gateway API to transcode each `.ts` segment based on a preset.  You can get a free API key from the [Livepeer website](https://livepeer.com).
 
 Livepeer is a highly reliabile, scalabile, and cost effective transcoding infrastructure.  This is a simple example of what can be build using its segmented-based transcoding API.
@@ -20,4 +19,5 @@ After getting the executable, you can try the following command.  Be sure to ins
 You should see a `/results` directory that contains your transcoding results.  You can play the transcoded result by running `ffplay results/playlist.m3u8`
 
 You can compare the results with what you will get from running ffmpeg yourself, following this [tutorial](https://docs.peer5.com/guides/production-ready-hls-vod/).
->>>>>>> 2447f77040e8780d3ea3207aa4e525d8dfadb49c
+
+TODO: Complete mp4 workflow - writing list.txt, combine using `ffmpeg -f concat -safe 0 -i list.txt -c copy out.mp4`
