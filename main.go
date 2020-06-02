@@ -25,6 +25,7 @@ func main() {
 	fname := flag.String("file", "", "File to transcode")
 	apiKey := flag.String("apiKey", "", "Livepeer api key")
 	presets := flag.String("presets", "", "Location of the json file that contains the transcode presets")
+	format := flag.String("format", "hls", "Format of the output")
 
 	flag.Parse()
 	assertFfmpeg()
@@ -39,6 +40,10 @@ func main() {
 	}
 	if *presets == "" {
 		fmt.Println("Need to specify presets")
+		return
+	}
+	if *format != "mp4" && *format != "hls" {
+		fmt.Println("format needs to be mp4 or hls")
 		return
 	}
 
@@ -60,12 +65,13 @@ func main() {
 		return
 	}
 
-	segment(*fname, datadir)
+	segment(*fname, datadir, *format)
 
-	if !transcode(broadcaster, streamID, *fname, datadir) {
+	if !transcode(broadcaster, streamID, *fname, datadir, *format) {
 		fmt.Println("Transcoding failed")
 	}
 
+	return
 	writePlaylists(*fname, datadir, playlists)
 	fmt.Println("Finished.")
 }
@@ -80,12 +86,19 @@ func assertFfmpeg() {
 	}
 }
 
-func segment(fname, datadir string) {
+func segment(fname, datadir, format string) {
 	fmt.Println("Segmenting " + fname)
 	extension := filepath.Ext(fname)
 	nameNoExt := fname[0 : len(fname)-len(extension)]
-	// cmd := exec.Command("ffmpeg", "-i", fname, "-acodec", "aac", "-f", "segment", "-vcodec", "copy", "-reset_timestamps", "1", "-map", "0", datadir+"/"+nameNoExt+"_%04d.mp4")
-	cmd := exec.Command("ffmpeg", "-i", fname, "-acodec", "aac", "-f", "segment", "-vcodec", "copy", "-reset_timestamps", "1", "-map", "0", "-hls_list_size", "0", "-f", "hls", datadir+"/"+nameNoExt+".m3u8")
+
+	var cmd *exec.Cmd
+	if format == "mp4" {
+		cmd = exec.Command("ffmpeg", "-i", fname, "-acodec", "aac", "-f", "segment", "-vcodec", "copy", "-reset_timestamps", "0", "-map", "0", datadir+"/"+nameNoExt+"_%d.mp4")
+	} else if format == "hls" {
+		cmd = exec.Command("ffmpeg", "-i", fname, "-acodec", "aac", "-f", "segment", "-vcodec", "copy", "-reset_timestamps", "1", "-map", "0", "-hls_list_size", "0", "-f", "hls", datadir+"/"+nameNoExt+".m3u8")
+	} else {
+		return
+	}
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -102,7 +115,8 @@ func createStream(apiKey, presets string) (string, error) {
 
 	req, err := http.NewRequest("POST", "https://livepeer.com/api/stream", body)
 	if err != nil {
-		return "", errors.New("")
+		fmt.Println("Error creating stream: %v", err)
+		return "", err
 	}
 
 	req.Header.Add("Authorization", bearer)
@@ -112,20 +126,20 @@ func createStream(apiKey, presets string) (string, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error creating stream: %s", err)
-		return "", errors.New("")
+		return "", err
 	}
 	defer resp.Body.Close()
 	res, err := ioutil.ReadAll(resp.Body)
 	if err != nil || string(res) == "" {
 		fmt.Println("Error creating stream: %s", err)
-		return "", errors.New("")
+		return "", err
 	}
 
 	var stream map[string]interface{}
 	err = json.Unmarshal([]byte(res), &stream)
 	if err != nil {
 		fmt.Println("Error parsing response: %v", err)
-		return "", errors.New("")
+		return "", err
 	}
 	// fmt.Println("Created Stream.\n%s\n", stream)
 
@@ -164,32 +178,50 @@ func getBroadcaster(apiKey string) (string, error) {
 	return fmt.Sprintf("%v", broadcasters[0]["address"]), nil
 }
 
-func transcode(broadcaster, streamID, fname, datadir string) bool {
+func transcode(broadcaster, streamID, fname, datadir, format string) bool {
 	files, _ := ioutil.ReadDir(datadir)
 	fmt.Printf("Created %v segments\n", len(files))
 	for i := 0; i < len(files); i++ {
 		extension := filepath.Ext(fname)
 		nameNoExt := fname[0 : len(fname)-len(extension)]
-		segName := fmt.Sprintf("%s%d.ts", nameNoExt, i)
-		fmt.Printf("Transcoding %v\n", segName)
+		if format == "hls" {
+			segName := fmt.Sprintf("%s%d.ts", nameNoExt, i)
+			fmt.Printf("Transcoding %v\n", segName)
 
-		// extension := filepath.Ext(fname)
-		// nameNoExt := fname[0 : len(fname)-len(extension)]
-		segDuration := readDuration(datadir+"/"+nameNoExt+".m3u8", segName)
-		if err := transcodeSeg(datadir, segName, fmt.Sprintf("%d", i), broadcaster, streamID, segDuration); err != nil {
-			fmt.Printf("Failed to transcode %v: %v", segName, err)
-			// return false
+			segDuration := readDuration(datadir+"/"+nameNoExt+".m3u8", segName)
+			if err := transcodeSeg(datadir, segName, fmt.Sprintf("%d", i), broadcaster, streamID, format, segDuration); err != nil {
+				fmt.Printf("Failed to transcode %v: %v", segName, err)
+				// return false
+			}
+		} else if format == "mp4" {
+			segName := fmt.Sprintf("%s_%d.mp4", nameNoExt, i)
+			fmt.Printf("Transcoding %v\n", segName)
+
+			// segDuration := readDuration(datadir+"/"+nameNoExt+".m3u8", segName)
+			if err := transcodeSeg(datadir, segName, fmt.Sprintf("%d", i), broadcaster, streamID, format, ""); err != nil {
+				fmt.Printf("Failed to transcode %v: %v", segName, err)
+				// return false
+			}
+
 		}
 	}
 
 	return true
 }
 
-func transcodeSeg(datadir, fname, i, broadcaster, streamID, duration string) error {
+func transcodeSeg(datadir, fname, i, broadcaster, streamID, format, duration string) error {
 	f, err := ioutil.ReadFile(datadir + "/" + fname)
 	body := bytes.NewBuffer(f)
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%v/live/%v/%v.ts", broadcaster, streamID, i), body)
+	var ext string
+	if format == "mp4" {
+		ext = "mp4"
+	} else if format == "hls" {
+		ext = "ts"
+	}
+
+	uploadUrl := fmt.Sprintf("%v/live/%v/%v.%s", broadcaster, streamID, i, ext)
+	req, err := http.NewRequest("POST", uploadUrl, body)
 	if err != nil {
 		return err
 	}
@@ -220,11 +252,33 @@ func transcodeSeg(datadir, fname, i, broadcaster, streamID, duration string) err
 
 			h := p.Header["Content-Disposition"]
 			_, params, err := mime.ParseMediaType(h[0])
+			if err != nil {
+				return err
+			}
+
 			tfname := params["filename"]
 			content, err := ioutil.ReadAll(p)
-			ioutil.WriteFile(datadir+"/"+string(tfname[0:5])+fname, content, 0666)
-			insertToPlaylist(string(tfname[0:5]), i, string(tfname[0:5])+fname, duration)
+			if err != nil {
+				return err
+			}
+
+			err = ioutil.WriteFile(datadir+"/"+string(tfname[0:5])+fname, content, 0666)
+			if err != nil {
+				return err
+			}
+			if format == "hls" {
+				insertToPlaylist(string(tfname[0:5]), i, string(tfname[0:5])+fname, duration)
+			} else if format == "mp4" {
+				//do nothing
+			}
 		}
+	} else {
+		fmt.Println(mediaType)
+		out, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		fmt.Println(fmt.Sprintf("%s", out))
 	}
 	return nil
 }
