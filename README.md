@@ -1,3 +1,5 @@
+**This tool is deprecated.  For VoD support, please visit https://livepeer.com/docs**
+
 # livepeer-vod-tool
 A VOD Transcoding Tool Using Livepeer's Hosted Gateway
 
